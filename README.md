@@ -1,5 +1,7 @@
 # CircuRead：A Distributed Academic Idea Review System
 
+[**English**](README.md) | [**中文**](README_CN.md)
+
 This system leverages GitHub and GitHub Actions to create a secure, transparent, and traceable distributed review process for academic idea notes. It ensures ideas are collaboratively reviewed, signatures are immutable, and version history is fully maintained.
 
 ## Table of Contents
