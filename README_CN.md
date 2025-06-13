@@ -149,9 +149,3 @@ my-ideas/                       # 个人私有仓库示例
 ## 许可证
 
 MIT © 2025 CircuRead Contributors
-"""
-
-with open('/mnt/data/README\_CN\_perfected.md', 'w', encoding='utf-8') as f:
-f.write(readme\_cn\_perfected)
-
-'/mnt/data/README\_CN\_perfected.md'
