@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# ------------------------------------------------------------
+# circuread CLI : deliver / review / fetch / route
+# Repo-level .circuread.yml 维护 upstreams / downstreams 列表。
+# Edge repo 始终由 upstream 创建并拥有。下游只是 collaborator。
+# ------------------------------------------------------------
+set -euo pipefail
+shopt -s nullglob
+
+deps() {
+  command -v yq >/dev/null || { echo "❌ yq not found. brew/apt install yq" ; exit 1; }
+  command -v gh >/dev/null || { echo "❌ gh cli required"; exit 1; }
+}
+deps
+
+CONFIG_FILE=".circuread.yml"
+ME=$(yq '.me' "$CONFIG_FILE")
+EX_ORG=$(yq '.exchange_org' "$CONFIG_FILE")
+
+uuid() { cat /proc/sys/kernel/random/uuid; }
+
+deliver() {
+  local note="$1"
+  local meta="${note%.tex}.meta.yml"
+  local uuid=$(uuid)
+  local push_to=($(yq '.push_to[]' "$meta" 2>/dev/null || true))
+
+  [[ ${#push_to[@]} -eq 0 ]] && { echo "No push_to reviewer set in $meta"; exit 1; }
+
+  for reviewer in "${push_to[@]}"; do
+     remote="git@github.com:${EX_ORG}/${reviewer}__to__${ME}.git"
+     tmp=$(mktemp -d)
+     mkdir -p "$tmp/$uuid"
+     cp "$note" "$meta" "$tmp/$uuid"/
+     ( cd "$tmp" && git init -q && git add .              && git commit -S -m "Deliver $note to $reviewer" )
+     pushd "$tmp" >/dev/null
+     if git ls-remote "$remote" &>/dev/null; then
+        git remote add origin "$remote"
+        git push -u origin master
+        echo "📤  Pushed to $remote"
+     else
+        echo "⚠️  Edge repo $remote not found. Ask upstream ($reviewer) to run sync-edges."
+     fi
+     popd >/dev/null
+     rm -rf "$tmp"
+  done
+}
+
+review() {
+  local edge_path="$1"
+  cd "$edge_path"
+  tex=$(ls */*.tex | head -n1)
+  ${EDITOR:-vim} "$tex"
+  git add "$tex"
+  git commit -S -m "Signed review"
+  git push
+  echo "🖋️  Review signed & pushed."
+}
+
+fetch() {
+  local uuid="$1"
+  for repo in $(gh repo list "$EX_ORG" --json name -q '.[].name' | grep "__${ME}$"); do
+     gh repo clone "$EX_ORG/$repo" "tmp_$repo" -- -q
+     if [[ -d tmp_$repo/$uuid ]]; then
+        cp -r tmp_$repo/$uuid/* .
+        git add .
+        git commit -S -m "Merge reviews from $repo"
+     fi
+     rm -rf "tmp_$repo"
+  done
+  git push
+  echo "⬇️  Reviews merged."
+}
+
+route() {
+  local meta="$1"
+  echo "Current push_to:"; yq '.push_to' "$meta"
+  read -p "Add reviewer (empty to skip): " rev
+  if [[ -n "$rev" ]]; then
+     yq -i '.push_to += ["'"$rev"'"]' "$meta"; git add "$meta"; git commit -m "Update routing"; git push
+  fi
+}
+
+case "${1:-}" in
+  deliver) deliver "$2";;
+  review)  review  "$2";;
+  fetch)   fetch   "$2";;
+  route)   route   "$2";;
+  *) echo "Usage: circuread {deliver|review|fetch|route} <arg>";;
+esac

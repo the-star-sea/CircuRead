@@ -1,143 +1,157 @@
-# CircuRead：分布式学术圈阅阅系统
+# CircuRead：分布式学术圈阅与协作系统
 
-CircuRead 将 Git + GitHub 拓展为一个**签名、多层级的评阅网络**。  
-每位研究者保有私有仓库；创意沿自动生成的“交换仓库”向**上游**导师递交，评语沿**下游**返还学生。  
-所有提交均 GPG 签名、可追溯，并始终对原作者可见。
+CircuRead 是一个基于 Git 与 GitHub 的**分布式、数字签名的多层级同行评阅系统**，旨在实现学术想法的安全、高效与透明流转，推动思想火花快速浮现并获得认可。
 
-[**English**](README.md) | [**中文**](README_CN.md)
-
-## 目录
-
-* [功能特色](#功能特色)
-* [工作原理](#工作原理)
-* [为什么选择 CircuRead](#为什么选择-circuread)
-* [快速上手](#快速上手)
-  * [前置条件](#前置条件)
-  * [环境配置](#环境配置)
-  * [典型流程](#典型流程)
-* [签名校验](#签名校验)
-* [贡献指南](#贡献指南)
-* [许可证](#许可证)
+[**English**](README.md) | [**中文**](README_CN.md)
 
 ---
 
-## 功能特色
+## 愿景（Vision）
 
-* **分布式存储** — 每人一个私有仓库，无单点故障。  
-* **交换仓库** — 首次互动自动生成 `alice__to__bob` 轻量仓库，仅双方可见。  
-* **图结构评阅** — 每篇笔记可并行发送至多个上游，并对选定下游开放阅读。  
-* **文件级 ACL** — 伴随文件 `note.meta.yml` 指定 `writer / noters / readers / push_to`，权限自动授撤。  
-* **不可篡改签名** — 每次批准都是 GPG 签名提交。  
-* **LaTeX 优先** — 建议 `.tex`，亦兼容其它纯文本。  
-* **一行式 CLI** — `circuread deliver / review / fetch` 包办所有 Git + API 操作。  
-* **可选 GitHub Actions** — 定时清理权限、提醒评阅人。  
+CircuRead 期望通过透明、高效的去中心化思想圈阅机制，帮助研究者更快地发现与提升高质量的学术思想，加速科研成果转化，推动科研资源集中于真正具有潜力的重大项目（集中力量办大事），营造一个可信、开放的学术环境。
+
+---
+
+## 核心特性
+
+* **去中心化存储**：每个研究者拥有专属 GitHub 仓库，独立维护自己的思想笔记，确保数据韧性，避免单点故障。
+* **强大版本控制**：利用 Git 完整记录每次修改、添加和签名，提供完整、可追溯的历史记录。
+* **不可篡改签名**：采用 Git 提交的 GPG 数字签名，确保每条评阅记录的真实性及思想笔记的完整性。
+* **LaTeX 原生支持**：支持 LaTeX 格式的思想笔记，确保学术文档格式专业统一。
+* **自动化圈阅流程**：通过 GitHub Actions 自动完成圈阅请求的检查与通知，减少人工维护成本。
+* **动态灵活的圈阅层级**：研究者既可以向“上游”导师提交笔记，也能审阅“下游”学生的笔记，实现圈阅结构的灵活与动态流动。
 
 ---
 
 ## 工作原理
 
-1. **私有笔记仓库** — 如 `alice/ideas`。  
-2. **笔记 + 元数据**：  
+1. **个人仓库**：每个研究者单独拥有一个私有仓库，例如 `alice/ideas`。
+
+2. **笔记与元数据**：每个学术想法均存储在一个专属目录中：
+
    ```
    qubits/
-       note.tex
-       note.meta.yml
+     ├── note.tex
+     └── note.meta.yml
    ```
-3. **向上游投递** — `circuread deliver` 解析 `push_to`，为每个 `(我→评阅人)` 创建交换仓库并推送签名提交。  
-4. **评阅与签名** — 评阅人运行 `circuread review`，在 LaTeX 中插入 `\signature{…}` 并签名提交。  
-5. **拉取并合并** — 作者运行 `circuread fetch` 将签名历史合并回私仓，下游读者获得只读权限。  
-6. **多上游并行** — 一个笔记可同时发送给多位评阅人，互不冲突。  
-7. **自动收尾** — 合并后可由 Action 撤销交换仓库权限，固化记录。  
+
+   其中，元数据文件声明圈阅路径及权限。
+
+3. **上游递交**：`circuread deliver qubits/note.tex` 自动解析 `push_to` 列表，创建并配置交换仓库，推送签名提交给指定的上游评阅人。
+
+4. **评阅与签名**：评阅人运行 `circuread review`，在笔记中添加签名 `\signature{…}` 并通过 GPG 提交推回。
+
+5. **拉取与合并**：作者运行 `circuread fetch <uuid>` 拉取所有评阅的签名反馈；下游的学生自动获得只读权限以追踪最新进展。
+
+6. **多上游并行**：单个笔记可以并行发送至多个评阅人，每个评阅链独立存储，避免冲突。
+
+7. **权限动态管理**：每次修改权限配置后，系统自动同步交换仓库权限，确保协作关系实时有效。
 
 ---
 
-## 为什么选择 CircuRead
-
-* **极致透明** — 原作者随时洞悉评阅路径，签名可加密验证。  
-* **高效发现好点子** — 多层级背书让优秀创意更早脱颖而出。  
-* **集中力量办大事** — 通过签名链遴选，高校/实验室可将资源聚焦于最具潜力的项目。  
-
----
-
-## 快速上手
+## 快速开始
 
 ### 前置条件
 
-* GitHub 账号 + Git CLI  
-* GitHub CLI (`gh`)  
-* GPG 密钥（用于签名）  
+* GitHub 账号与 Git CLI
+* GitHub CLI (`gh`) 工具
+* GPG 签名密钥（[生成指南](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)）
 
-### 环境配置
+### 仓库配置
 
-1. **创建私有仓库**（如 `my-ideas`）  
-2. **添加节点配置** `.circuread.yml`：  
-   ```yaml
-   me: alice_smith
-   upstreams: [bob_johnson, clara_kim]
-   downstreams: [charlie_lee, dana_chen]
-   exchange_org: circuread-xrepos
-   default_visibility: private
-   ```
-3. **建立笔记模版**：  
-   ```bash
-   mkdir qubits
-   touch qubits/note.tex qubits/note.meta.yml
-   ```
-   示例 `note.meta.yml`：  
-   ```yaml
-   title: 拓扑量子比特
-   writer: alice_smith
-   noters: []
-   readers: [charlie_lee, dana_chen]
-   push_to: [bob_johnson, clara_kim]
-   ```
-4. **启用 Git 全局签名**：  
-   ```bash
-   git config --global user.signingkey YOUR_GPG_ID
-   git config --global commit.gpgsign true
-   ```
+```yaml
+# .circuread.yml
+me: alice_smith
+upstreams: [bob_johnson, clara_kim]
+downstreams: [charlie_lee, dana_chen]
+exchange_org: circuread-xrepos
+default_visibility: private
+```
 
-### 典型流程
-
-#### 1 · 作者
+创建首个笔记：
 
 ```bash
+mkdir -p qubits
+touch qubits/note.tex qubits/note.meta.yml
+```
+
+`note.meta.yml` 示例：
+
+```yaml
+title: Topological Qubits
+writer: alice_smith
+noters: []
+readers: [charlie_lee, dana_chen]
+push_to: [bob_johnson, clara_kim]
+```
+
+启用提交签名：
+
+```bash
+git config --global user.signingkey YOUR_GPG_ID
+git config --global commit.gpgsign true
+```
+
+### 日常操作
+
+```bash
+# 作者提交笔记
 vim qubits/note.tex
 git add qubits/*
-git commit -S -m "草稿：拓扑量子比特"
+git commit -S -m "Draft: topological qubits"
 circuread deliver qubits/note.tex
-```
 
-#### 2 · 评阅人
+# 上游评阅笔记
+circuread review ~/gh/circuread-xrepos/alice__to__bob/qubits/<uuid>
 
-```bash
-circuread review ~/gh/circuread-xrepos/alice__to__bob/qubits/note-uuid
-```
-
-#### 3 · 作者拉取
-
-```bash
-circuread fetch qubits/note-uuid
+# 作者拉取评阅反馈
+circuread fetch <uuid>
 ```
 
 ---
 
-## 签名校验
+## 签名验证
 
-* **GitHub 页面** — 提交旁的绿色 **Verified**。  
-* **命令行** —  
-  ```bash
-  git log --show-signature --oneline
-  ```
+```bash
+git log --show-signature --decorate --oneline
+```
 
 ---
 
 ## 贡献指南
 
-欢迎 PR：改进 ACL 语法、CLI、或编写自动化脚本。
+欢迎提交 Bug 报告、功能请求以及新的自动化脚本，创建 Issue 或提交 Pull Request。
+
+---
+
+## 项目文件结构
+
+```text
+startup/
+├── bootstrap.sh
+├── circuread
+├── fetch_edges.sh
+├── manage_edges.sh
+└── .github/
+    └── workflows/
+        ├── auto_fetch.yml
+        └── sync_edges.yml
+
+my-ideas/                       # 个人私有仓库示例
+├── .circuread.yml
+└── qubits/
+    ├── note.tex
+    └── note.meta.yml
+```
 
 ---
 
 ## 许可证
 
-MIT © 2025 CircuRead 贡献者
+MIT © 2025 CircuRead Contributors
+"""
+
+with open('/mnt/data/README\_CN\_perfected.md', 'w', encoding='utf-8') as f:
+f.write(readme\_cn\_perfected)
+
+'/mnt/data/README\_CN\_perfected.md'
