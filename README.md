@@ -1,8 +1,10 @@
 # CircuRead: A Distributed Academic Idea Review System
 
-CircuRead leverages GitHub and GitHub Actions to create a secure, transparent, and traceable distributed review process for academic idea notes. It ensures ideas are collaboratively reviewed, signatures are immutable, and version history is fully maintained.
+CircuRead extends Git + GitHub into a **signed, multi‑tier review network** for academic idea notes.  
+Every researcher keeps a private repository; reviews flow *upstream* to mentors via automatically‑generated “exchange” repositories and feedback flows *downstream* to students.  
+All commits are GPG‑signed, fully traceable, and always visible to the original author.
 
-[**English**](README.md) | [**中文**](README_CN.md)
+[**English**](README.md) | [**中文**](README_CN.md)
 
 ## Table of Contents
 
@@ -10,9 +12,9 @@ CircuRead leverages GitHub and GitHub Actions to create a secure, transparent, a
 * [How It Works](#how-it-works)
 * [Why CircuRead?](#why-circuread)
 * [Getting Started](#getting-started)
-    * [Prerequisites](#prerequisites)
-    * [Setup](#setup)
-    * [Workflow](#workflow)
+  * [Prerequisites](#prerequisites)
+  * [Setup](#setup)
+  * [Workflow](#workflow)
 * [Signature Verification](#signature-verification)
 * [Contributing](#contributing)
 * [License](#license)
@@ -21,48 +23,38 @@ CircuRead leverages GitHub and GitHub Actions to create a secure, transparent, a
 
 ## Features
 
-* **Decentralized Storage:** Each participant maintains their own GitHub repository for idea notes, ensuring data resilience and eliminating single points of failure.
-* **Version Control:** Leverages Git's powerful version control to track every change, addition, and signature, providing a complete historical record.
-* **Immutable Signatures:** Utilizes Git's commit signing (GPG) to ensure the authenticity of each signature and the integrity of the idea note content.
-* **LaTeX Integration:** Supports idea notes written in LaTeX, allowing for professional and consistent formatting.
-* **Automated Review Workflow:** GitHub Actions can automate checks and notifications for review requests.
-* **Fluid Review Hierarchy:** Supports a flexible review structure where individuals can review "downstream" ideas and have their own ideas reviewed "upstream," fostering dynamic collaboration.
-* **Submitter Transparency:** Guarantees that the originator of an idea note always has visibility into its review progress and all subsequent signatures.
+* **Decentralised Repositories** – every participant owns a private repo; no single point of failure.  
+* **Exchange Repos** – when two nodes first interact, CircuRead auto‑creates a lightweight edge repo (`alice__to__bob`) under a shared organisation; only the two collaborators can see it.
+* **Graph‑Based Review** – each note can be routed to *multiple* upstream reviewers and exposed to selected downstream readers.
+* **Per‑File Access Lists** – a sidecar YAML (`note.meta.yml`) names its `writer`, `noters`, `readers`, and `push_to` reviewers; privileges are granted/revoked automatically.
+* **Immutable Signatures** – every approval is a GPG‑signed commit appended to the note.
+* **LaTeX‑First** – notes are typically `.tex`, but any plaintext is fine.
+* **One‑Line CLI** – `circuread deliver`, `circuread review`, `circuread fetch` wrap all Git + GitHub steps.
+* **GitHub Actions Optional** – automate periodic permission cleanup or notify reviewers on delivery.
 
 ---
 
 ## How It Works
 
-At its core, CircuRead treats each idea note and its review process as a series of Git commits in a distributed repository, promoting a flexible "up" and "down" review dynamic.
-
-1.  **Individual's Repository:** Every participant (whether student, researcher, or professor) creates and maintains their own private GitHub repository for their idea notes.
-2.  **Idea Note Creation:** Individuals write their idea notes in LaTeX, committing them to their own repository.
-3.  **Initiating a Review (Upstream):** When an individual (the "Originator") wants an idea reviewed by a more senior colleague (their "Reviewer"), they:
-    * Push their changes to their repository.
-    * **Grant read access to their Reviewer** on their repository.
-    * Notify their Reviewer about the new idea note requiring attention.
-4.  **Reviewer's Action & Signature:**
-    * The Reviewer clones the Originator's repository.
-    * They review the idea note. If approved, they **add their name and a GPG-signed commit** to the LaTeX file (e.g., in a dedicated signature section).
-    * This signed commit acts as their immutable approval.
-    * They then push this signed commit back to the Originator's repository.
-5.  **Hierarchical Advancement:** Good ideas can be "promoted" further up the chain:
-    * If the Reviewer believes the idea merits review by an even more senior colleague (their "Upstream Reviewer"), they can:
-        * Share the Originator's repository (or a specific commit/branch from it) with the Upstream Reviewer.
-        * The Upstream Reviewer repeats the review and signing process directly within the **Originator's repository**.
-    * Each level of review adds a new, cryptographically verifiable signature to the idea note's history, always within the original idea's repository.
-6.  **Transparent Feedback Loop:** Since all reviews and signatures happen directly within the Originator's repository, the **Originator automatically sees every step of the review process**, including all added names and signed commits, as soon as they are pushed. This ensures full transparency for the person who initially submitted the idea.
-7.  **Immutable Record:** Git's cryptographic hashing ensures that any attempt to tamper with past commits or signatures will invalidate the subsequent history, making tampering easily detectable.
+1. **Private Note Repo** – each researcher keeps a private repo (e.g. `alice/ideas`).2. **Note + Meta** – every idea lives in a directory:   ```
+   qubits/
+       note.tex
+       note.meta.yml
+   ```
+   The meta file declares routing and ACLs.
+3. **Delivery Upstream** – `circuread deliver qubits/note.tex` reads its `push_to` list, ensures an exchange repo for every `(me → reviewer)` pair, grants access, and pushes a signed commit containing only that note.
+4. **Review & Signature** – reviewers run `circuread review`, append `\signature{…}` inside the LaTeX, commit with `-S`, and push back.
+5. **Fetch & Merge** – the writer runs `circuread fetch <uuid>` to pull signed commits from each edge repo back into their private history; downstream readers get read‑only access automatically.
+6. **Multiple Upstreams** – a note may fan‑out to many reviewers; each edge repo stores only its own history, avoiding merge chaos.
+7. **Automatic Cleanup** – once the writer has fetched, a GitHub Action can revoke edge‑repo access to freeze the record.
 
 ---
 
 ## Why CircuRead?
 
-CircuRead is designed with several key objectives in mind:
-
-* **Academic Transparency:** By maintaining a complete, verifiable history of idea development and review, we foster an environment of open scrutiny and accountability. Every contribution and every signature is permanently recorded, enhancing trust and clarity in the academic process. The originator always has full visibility into the review chain.
-* **Better Discovery of Good Ideas:** The structured, hierarchical review process allows promising ideas to naturally surface and gain visibility. As ideas are reviewed and endorsed by progressively senior academics, truly impactful concepts can be identified earlier and brought to the attention of the wider academic community.
-* **Concentrate Resources on Major Undertakings (集中力量办大事):** This system helps us efficiently channel attention and resources towards the most impactful and validated research ideas. By systematically elevating strong proposals, we ensure that valuable time, funding, and intellectual effort are focused on initiatives that have the greatest potential for significant academic contribution. This strategic allocation helps us achieve breakthrough results more effectively.
+* **Radical Transparency** – every signature is cryptographically verifiable; the originator sees the entire path of their idea.  
+* **Early Discovery of Impactful Work** – multi‑tier routing lets strong ideas rise quickly through endorsement.  
+* **Focused Resources (集中力量办大事)** – by bubbling up well‑signed proposals, departments can channel funding and attention to projects with proven merit.
 
 ---
 
@@ -70,89 +62,86 @@ CircuRead is designed with several key objectives in mind:
 
 ### Prerequisites
 
-* A GitHub account.
-* Basic understanding of Git commands.
-* A GPG key for signing commits (recommended for all reviewers).
-    * [Generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
-    * [Telling Git about your signing key](https://docs.github.com/en/authentication/managing-commit-signature-verification/telling-git-about-your-signing-key)
+* GitHub account + Git CLI
+* GitHub CLI (`gh`) for API calls
+* GPG key for signed commits  
+  * [Generate a key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
 
 ### Setup
 
-1.  **Create Your Repository:**
-    * Every participant: Create a **private** GitHub repository for your idea notes (e.g., `my-research-ideas`).
-2.  **LaTeX Template (Optional but Recommended):**
-    * Consider creating a standard LaTeX template for idea notes that includes a dedicated section for signatures (e.g., using `\signature{Name}{Date}{GPG_Fingerprint}`).
-3.  **Configure Git for Signing:**
-    * Ensure Git is configured to sign your commits using your GPG key.
-        ```bash
-        git config --global user.signingkey YOUR_GPG_KEY_ID
-        git config --global commit.gpgsign true # Automatically sign all commits
-        ```
+1. **Create your private repo** (e.g. `my-ideas`).  
+2. **Add a node config** `.circuread.yml`:
+   ```yaml
+   me: alice_smith
+   upstreams: [bob_johnson, clara_kim]
+   downstreams: [charlie_lee, dana_chen]
+   exchange_org: circuread-xrepos
+   default_visibility: private
+   ```
+3. **Create a note template**:
+   ```bash
+   mkdir qubits
+   touch qubits/note.tex qubits/note.meta.yml
+   ```
+   Example `note.meta.yml`:
+   ```yaml
+   title: Topological Qubits
+   writer: alice_smith
+   noters: []
+   readers: [charlie_lee, dana_chen]
+   push_to: [bob_johnson, clara_kim]
+   ```
+4. **Set Git to sign**:
+   ```bash
+   git config --global user.signingkey YOUR_GPG_ID
+   git config --global commit.gpgsign true
+   ```
 
 ### Workflow
 
-1.  **Originator's Initial Submission:**
-    * Write your idea note in LaTeX (e.g., `idea-note-quantum-computing.tex`).
-    * Add and commit your file:
-        ```bash
-        git add idea-note-quantum-computing.tex
-        git commit -S -m "Initial idea note: Towards Quantum Error Correction with Topological Qubits" # -S signs the commit
-        git push origin main
-        ```
-    * **Grant read access** to your intended Reviewer on your GitHub repository.
-    * Notify your Reviewer about the new idea note.
-2.  **Reviewer's Action & Signature (First Level):**
-    * The Reviewer clones the Originator's repository:
-        ```bash
-        git clone [https://github.com/originator-username/my-research-ideas.git](https://github.com/originator-username/my-research-ideas.git)
-        cd my-research-ideas
-        ```
-    * Review `idea-note-quantum-computing.tex`.
-    * If approved, edit `idea-note-quantum-computing.tex` to add your signature (e.g., `\signature{Dr. Alice Smith}{\today}{ABC123DEF456}` inside the document).
-    * Commit the change with your GPG signature:
-        ```bash
-        git add idea-note-quantum-computing.tex
-        git commit -S -m "Approved and signed by Dr. Alice Smith for Quantum Error Correction idea"
-        git push origin main
-        ```
-    * **Transparency for Originator:** The Originator will see this new commit and signature in their own repository.
-3.  **Upstream Reviewer's Action & Signature (Second Level, etc.):**
-    * If Dr. Alice Smith decides this idea needs review by Professor Bob Johnson:
-        * Dr. Smith would inform Prof. Johnson about the idea in `originator-username/my-research-ideas`.
-        * Prof. Johnson would need to have (or be granted) read access to `originator-username/my-research-ideas`.
-        * Prof. Johnson clones/pulls the latest changes from `originator-username/my-research-ideas`.
-        * Reviews the idea note, adds their signature to `idea-note-quantum-computing.tex` (e.g., `\signature{Prof. Bob Johnson}{\today}{GHI789JKL012}`), and commits with their GPG signature:
-            ```bash
-            git add idea-note-quantum-computing.tex
-            git commit -S -m "Endorsed and signed by Prof. Bob Johnson for Quantum Error Correction idea"
-            git push origin main
-            ```
-    * The Originator continues to have full visibility into all new signatures and commits in their repository.
+#### 1 · Originator
+
+```bash
+vim qubits/note.tex            # write the idea
+git add qubits/*
+git commit -S -m "Draft: topological qubits"
+circuread deliver qubits/note.tex   # pushes to each upstream
+```
+
+#### 2 · Reviewer
+
+```bash
+circuread review ~/gh/circuread-xrepos/alice__to__bob/qubits/note-uuid
+```
+
+The CLI opens the LaTeX, appends `\signature{Dr. Bob Johnson}{\today}{GPG}` and pushes.
+
+#### 3 · Originator fetches
+
+```bash
+circuread fetch qubits/note-uuid
+```
+
+Signed commits merge into the private repo; edge‑repo access is optionally revoked.
 
 ---
 
 ## Signature Verification
 
-The integrity of this system relies on Git's commit signing. You can verify the authenticity of any commit (and thus, the signature) in a GitHub repository:
-
-* **On GitHub:** Look for the "Verified" badge next to commit messages. Clicking it will show details about the GPG signature.
-* **Locally using Git:**
-    ```bash
-    git log --show-signature
-    ```
-    This will display the GPG signature for each commit, indicating whether it's valid.
+* **GitHub UI** – look for the green **Verified** badge.  
+* **Command line** –
+  ```bash
+  git log --show-signature --decorate --oneline
+  ```
 
 ---
 
 ## Contributing
 
-This is a conceptual framework. If you have ideas for improving the workflow, automation with GitHub Actions, or better LaTeX integration, feel free to open issues or pull requests.
+Ideas for a richer ACL schema, CLI extensions, or GitHub Action recipes are welcome. Open an issue or pull request.
 
 ---
 
 ## License
 
-This project is open-sourced under the [MIT License](LICENSE).
-
----
-
+MIT © 2025 CircuRead Contributors
