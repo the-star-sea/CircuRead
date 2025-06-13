@@ -1,5 +1,7 @@
 # CircuRead:分布式学术圈圈阅体系
 
+[**English**](README.md) | [**中文**](README_CN.md)
+
 本体系利用 GitHub 和 GitHub Actions 搭建了一个安全、透明、可追溯的学术思想笔记圈阅流程。它确保了思想的协作评审、签名的不可篡改性以及完整的版本历史记录。
 
 -----
